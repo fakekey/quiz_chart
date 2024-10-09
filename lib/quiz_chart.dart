@@ -116,8 +116,8 @@ class ChartClipper extends CustomClipper<Path> {
   Path getClip(Size size) {
     final path = Path()
       ..moveTo(0, -8)
-      ..lineTo(0, size.height)
-      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height + 8)
+      ..lineTo(size.width, size.height + 8)
       ..lineTo(size.width, -8)
       ..close();
 
@@ -155,6 +155,7 @@ class LableChart extends StatefulWidget {
   final Size leftAxesSize;
   final Size rightAxesSize;
   final BoxConstraints cstr;
+  final double gapBwLabelnAxes;
 
   const LableChart({
     super.key,
@@ -162,6 +163,7 @@ class LableChart extends StatefulWidget {
     required this.leftAxesSize,
     required this.rightAxesSize,
     required this.cstr,
+    required this.gapBwLabelnAxes,
   });
 
   @override
@@ -179,7 +181,7 @@ class _LableChartState extends State<LableChart> {
         builder: (context, longest, child) {
           return Container(
             width: 40,
-            height: (longest?.width ?? 0) * cos(pi / 2 - pi / 6) + 20,
+            height: (longest?.width ?? 0) * cos(pi / 2 - pi / 6) + widget.gapBwLabelnAxes + 8,
             decoration: XAxesDecoration(
               leftAxesSize: widget.leftAxesSize,
               rightAxesSize: widget.rightAxesSize,
@@ -192,7 +194,7 @@ class _LableChartState extends State<LableChart> {
             ),
             margin: const EdgeInsets.symmetric(horizontal: 8),
             child: Transform.translate(
-              offset: const Offset(-40 / 2, 8),
+              offset: Offset(-40 / 2, widget.gapBwLabelnAxes),
               child: Transform.rotate(
                 angle: -pi / 6,
                 alignment: Alignment.topRight,
@@ -244,8 +246,10 @@ class QuizChart extends StatefulWidget {
   final int leftTickCount;
   final int rightTickCount;
   final int gridLineCount;
+  final double gapBwLabelnAxes;
+  final bool showSecondLabelReplace;
 
-  const QuizChart({
+  QuizChart({
     super.key,
     required this.data,
     this.leftAxesPadding = 16,
@@ -253,7 +257,19 @@ class QuizChart extends StatefulWidget {
     this.leftTickCount = 5,
     this.rightTickCount = 10,
     this.gridLineCount = 10,
-  });
+    this.gapBwLabelnAxes = 8,
+    this.showSecondLabelReplace = false,
+  }) {
+    for (var dat in data) {
+      assert(dat.group != null && dat.group!.isNotEmpty);
+      assert(dat.group!.length == 2);
+      for (var dat2 in dat.group!) {
+        assert(dat2.fromY != null && dat2.fromY! >= 0.0 && dat2.fromY! <= 1.0);
+        assert(dat2.toY != null && dat2.toY! >= 0.0 && dat2.toY! <= 1.0);
+      }
+      assert(((dat.group![0].toY! - dat.group![0].fromY!) + (dat.group![1].toY! - dat.group![1].fromY!)).round() == 1.0);
+    }
+  }
 
   @override
   State<QuizChart> createState() => _QuizChartState();
@@ -371,88 +387,94 @@ class _QuizChartState extends State<QuizChart> {
                     ClipPath(
                       clipBehavior: Clip.hardEdge,
                       clipper: ChartClipper(),
-                      child: SingleChildScrollView(
-                        clipBehavior: Clip.none,
-                        scrollDirection: Axis.horizontal,
-                        physics: const ScrollPhysics(parent: ClampingScrollPhysics()),
-                        controller: _chartBarSC,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: secondBorderColor)),
-                          ),
-                          child: Stack(
-                            children: [
-                              Row(
-                                children: List.generate(widget.data.length, (i) {
-                                  final firstStack = ((widget.data[i].group![0].toY! - widget.data[i].group![0].fromY!) * 100).round();
-                                  final secondStack = ((widget.data[i].group![1].toY! - widget.data[i].group![1].fromY!) * 100).round();
-                                  return Container(
-                                    width: 40,
-                                    height: double.infinity,
-                                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                                    child: Column(
-                                      children: [
-                                        secondStack != 0
-                                            ? Expanded(
-                                                flex: secondStack,
-                                                child: Container(
-                                                  width: double.infinity,
-                                                  height: double.infinity,
-                                                  color: secondChartColor,
-                                                  alignment: Alignment.center,
-                                                  child: Text(
-                                                    widget.data[i].group![1].x!,
-                                                    style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                              )
-                                            : const SizedBox(),
-                                        firstStack != 0
-                                            ? Expanded(
-                                                flex: firstStack,
-                                                child: Container(
-                                                  width: double.infinity,
-                                                  height: double.infinity,
-                                                  color: mainChartColor,
-                                                  alignment: Alignment.center,
-                                                  child: Text(
-                                                    widget.data[i].group![0].x!,
-                                                    style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                              )
-                                            : const SizedBox(),
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              ),
-                              Positioned.fill(child: CustomPaint(painter: ChartLinePainter(data: widget.data))),
-                              Positioned.fill(
-                                child: Row(
-                                  children: List.generate(widget.data.length, (i) {
-                                    final firstStack = ((widget.data[i].group![0].toY! - widget.data[i].group![0].fromY!) * 100).round();
-                                    final secondStack = ((widget.data[i].group![1].toY! - widget.data[i].group![1].fromY!) * 100).round();
-                                    return Container(
-                                      width: 40,
-                                      height: double.infinity,
-                                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                                      child: LayoutBuilder(builder: (_, constraints) {
-                                        return PointWithTooltip(
-                                          secondStack: secondStack,
-                                          firstStack: firstStack,
-                                          constraints: constraints,
-                                          data: widget.data[i],
-                                        );
-                                      }),
-                                    );
-                                  }),
+                      child: LayoutBuilder(builder: (_, cs) {
+                        return SingleChildScrollView(
+                          clipBehavior: Clip.none,
+                          scrollDirection: Axis.horizontal,
+                          physics: const ScrollPhysics(parent: ClampingScrollPhysics()),
+                          controller: _chartBarSC,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              border: Border(bottom: BorderSide(color: secondBorderColor)),
+                            ),
+                            child: Stack(
+                              children: [
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(minWidth: cs.maxWidth),
+                                  child: Row(
+                                    children: List.generate(widget.data.length, (i) {
+                                      final firstStack = ((widget.data[i].group![0].toY! - widget.data[i].group![0].fromY!) * 100).round();
+                                      final secondStack = ((widget.data[i].group![1].toY! - widget.data[i].group![1].fromY!) * 100).round();
+                                      return Container(
+                                        width: 40,
+                                        height: double.infinity,
+                                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                                        child: Column(
+                                          children: [
+                                            secondStack != 0
+                                                ? Expanded(
+                                                    flex: secondStack,
+                                                    child: Container(
+                                                      width: double.infinity,
+                                                      height: double.infinity,
+                                                      color: secondChartColor,
+                                                      alignment: Alignment.center,
+                                                      child: Text(
+                                                        widget.data[i].group![1].x!,
+                                                        style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const SizedBox(),
+                                            firstStack != 0
+                                                ? Expanded(
+                                                    flex: firstStack,
+                                                    child: Container(
+                                                      width: double.infinity,
+                                                      height: double.infinity,
+                                                      color: mainChartColor,
+                                                      alignment: Alignment.center,
+                                                      child: Text(
+                                                        widget.data[i].group![0].x!,
+                                                        style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const SizedBox(),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                Positioned.fill(child: CustomPaint(painter: ChartLinePainter(data: widget.data))),
+                                Positioned.fill(
+                                  child: Row(
+                                    children: List.generate(widget.data.length, (i) {
+                                      final firstStack = ((widget.data[i].group![0].toY! - widget.data[i].group![0].fromY!) * 100).round();
+                                      final secondStack = ((widget.data[i].group![1].toY! - widget.data[i].group![1].fromY!) * 100).round();
+                                      return Container(
+                                        width: 40,
+                                        height: double.infinity,
+                                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                                        child: LayoutBuilder(builder: (_, constraints) {
+                                          return PointWithTooltip(
+                                            secondStack: secondStack,
+                                            firstStack: firstStack,
+                                            constraints: constraints,
+                                            data: widget.data[i],
+                                            showSecondLabelReplace: widget.showSecondLabelReplace,
+                                          );
+                                        }),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ),
                   ],
                 ),
@@ -540,6 +562,7 @@ class _QuizChartState extends State<QuizChart> {
                         leftAxesSize: _leftAxesSize!,
                         rightAxesSize: _rightAxesSize!,
                         cstr: constraints,
+                        gapBwLabelnAxes: widget.gapBwLabelnAxes,
                       )
                     : const SizedBox();
               }),
@@ -563,12 +586,14 @@ class PointWithTooltip extends StatefulWidget {
     required this.firstStack,
     required this.constraints,
     required this.data,
+    required this.showSecondLabelReplace,
   });
 
   final int secondStack;
   final int firstStack;
   final QuizChartData data;
   final BoxConstraints constraints;
+  final bool showSecondLabelReplace;
 
   @override
   State<PointWithTooltip> createState() => _PointWithTooltipState();
@@ -577,138 +602,176 @@ class PointWithTooltip extends StatefulWidget {
 class _PointWithTooltipState extends State<PointWithTooltip> {
   final ValueNotifier<Size?> tooltipSize = ValueNotifier<Size?>(null);
   final ValueNotifier<Size?> hiddenLableSize = ValueNotifier<Size?>(null);
+  final ValueNotifier<Size?> hiddenLable2Size = ValueNotifier<Size?>(null);
   final ValueNotifier<bool> isVisible = ValueNotifier<bool>(true);
 
   @override
   Widget build(BuildContext context) {
-    return OverflowBox(
-      maxWidth: double.infinity,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          Column(
-            children: [
-              widget.secondStack != 0
-                  ? Expanded(
-                      flex: widget.secondStack,
-                      child: const SizedBox(),
-                    )
-                  : const SizedBox(),
-              widget.firstStack != 0
-                  ? Expanded(
-                      flex: widget.firstStack,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () {
-                          isVisible.value = !isVisible.value;
-                        },
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.topCenter,
-                          children: [
-                            SizedBox(
-                              width: widget.constraints.maxWidth,
-                            ),
-                            Positioned(
-                              top: -8,
-                              right: 0,
-                              left: 0,
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                decoration: const BoxDecoration(
-                                  color: pointLineColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                            ValueListenableBuilder<Size?>(
-                                valueListenable: tooltipSize,
-                                builder: (context, value, child) {
-                                  final firstStackHeight = widget.firstStack / 100 * widget.constraints.maxHeight;
-                                  return AnimatedPositioned(
-                                    duration: const Duration(milliseconds: 100),
-                                    curve: Curves.easeInOut,
-                                    top: value != null && firstStackHeight + value.height + 16 < widget.constraints.maxHeight ? -value.height - 16 : 16,
-                                    child: NotificationListener<SizeReporterNotification>(
-                                      onNotification: (notification) {
-                                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                                          tooltipSize.value = notification.size;
-                                        });
-                                        return true;
-                                      },
-                                      child: SizeReporter(
-                                        child: ValueListenableBuilder<bool>(
-                                            valueListenable: isVisible,
-                                            builder: (context, value, child) {
-                                              return AnimatedOpacity(
-                                                duration: const Duration(milliseconds: 100),
-                                                curve: Curves.easeInOut,
-                                                opacity: value ? 1 : 0,
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    vertical: 8,
-                                                    horizontal: 16,
-                                                  ),
-                                                  decoration: const BoxDecoration(
-                                                    color: pointLineColor,
-                                                    borderRadius: BorderRadius.all(Radius.circular(2)),
-                                                  ),
-                                                  child: Text(
-                                                    '${widget.firstStack}%',
-                                                    style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                              );
-                                            }),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                          ],
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        isVisible.value = !isVisible.value;
+      },
+      child: OverflowBox(
+        maxWidth: double.infinity,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            Column(
+              children: [
+                widget.secondStack != 0
+                    ? Expanded(
+                        flex: widget.secondStack,
+                        child: const SizedBox(),
+                      )
+                    : const SizedBox(),
+                Expanded(
+                  flex: widget.firstStack,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      SizedBox(
+                        width: widget.constraints.maxWidth,
+                      ),
+                      Positioned(
+                        top: -8,
+                        right: 0,
+                        left: 0,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: const BoxDecoration(
+                            color: pointLineColor,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    )
-                  : const SizedBox(),
-            ],
-          ),
-          Positioned(
-            child: NotificationListener<SizeReporterNotification>(
-              onNotification: (notification) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  hiddenLableSize.value = notification.size;
-                });
-                return true;
-              },
-              child: SizeReporter(
-                child: ValueListenableBuilder(
-                    valueListenable: hiddenLableSize,
-                    builder: (context, size, child) {
-                      final secondStackHeight = widget.secondStack / 100 * widget.constraints.maxHeight;
-                      return Opacity(
-                        opacity: size != null && secondStackHeight != 0 && size.height >= secondStackHeight ? 1 : 0,
-                        child: Container(
-                          width: widget.constraints.maxWidth - 4,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          decoration: const BoxDecoration(
-                            color: secondChartColor,
-                            borderRadius: BorderRadius.all(Radius.circular(2)),
-                            boxShadow: [
-                              BoxShadow(color: Color(0x33333333), blurRadius: 1),
-                            ],
+                      ValueListenableBuilder<Size?>(
+                          valueListenable: tooltipSize,
+                          builder: (context, value, child) {
+                            final firstStackHeight = widget.firstStack / 100 * widget.constraints.maxHeight;
+                            return AnimatedPositioned(
+                              duration: const Duration(milliseconds: 100),
+                              curve: Curves.easeInOut,
+                              top: value != null && firstStackHeight + value.height + 16 < widget.constraints.maxHeight ? -value.height - 16 : 16,
+                              child: NotificationListener<SizeReporterNotification>(
+                                onNotification: (notification) {
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    tooltipSize.value = notification.size;
+                                  });
+                                  return true;
+                                },
+                                child: SizeReporter(
+                                  child: ValueListenableBuilder<bool>(
+                                      valueListenable: isVisible,
+                                      builder: (context, value, child) {
+                                        return AnimatedOpacity(
+                                          duration: const Duration(milliseconds: 100),
+                                          curve: Curves.easeInOut,
+                                          opacity: value ? 1 : 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                              horizontal: 16,
+                                            ),
+                                            decoration: const BoxDecoration(
+                                              color: pointLineColor,
+                                              borderRadius: BorderRadius.all(Radius.circular(2)),
+                                            ),
+                                            child: Text(
+                                              '${widget.firstStack}%',
+                                              style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                ),
+                              ),
+                            );
+                          }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              child: NotificationListener<SizeReporterNotification>(
+                onNotification: (notification) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    hiddenLableSize.value = notification.size;
+                  });
+                  return true;
+                },
+                child: SizeReporter(
+                  child: ValueListenableBuilder(
+                      valueListenable: hiddenLableSize,
+                      builder: (context, size, child) {
+                        final secondStackHeight = widget.secondStack / 100 * widget.constraints.maxHeight;
+                        return Opacity(
+                          opacity: size != null && secondStackHeight != 0 && size.height >= secondStackHeight ? 1 : 0,
+                          child: Container(
+                            width: widget.constraints.maxWidth - 4,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: const BoxDecoration(
+                              color: secondChartColor,
+                              borderRadius: BorderRadius.all(Radius.circular(2)),
+                              boxShadow: [
+                                BoxShadow(color: Color(0x33333333), blurRadius: 1),
+                              ],
+                            ),
+                            child: Text(
+                              "${widget.data.group![1].x}",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          child: Text(
-                            "${widget.data.group![1].x}",
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      );
-                    }),
+                        );
+                      }),
+                ),
               ),
             ),
-          ),
-        ],
+            if (widget.showSecondLabelReplace)
+              Positioned(
+                bottom: 0,
+                child: NotificationListener<SizeReporterNotification>(
+                  onNotification: (notification) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      hiddenLable2Size.value = notification.size;
+                    });
+                    return true;
+                  },
+                  child: SizeReporter(
+                    child: ValueListenableBuilder(
+                        valueListenable: hiddenLable2Size,
+                        builder: (context, size, child) {
+                          final firstStackHeight = widget.firstStack / 100 * widget.constraints.maxHeight;
+                          return Opacity(
+                            opacity: size != null && firstStackHeight != 0 && size.height >= firstStackHeight ? 1 : 0,
+                            child: Container(
+                              width: widget.constraints.maxWidth - 4,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: const BoxDecoration(
+                                color: secondChartColor,
+                                borderRadius: BorderRadius.all(Radius.circular(2)),
+                                boxShadow: [
+                                  BoxShadow(color: Color(0x33333333), blurRadius: 1),
+                                ],
+                              ),
+                              child: Text(
+                                "${widget.data.group![0].x}",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 10, color: barTextColor, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          );
+                        }),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

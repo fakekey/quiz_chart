@@ -16,11 +16,11 @@ class App extends StatelessWidget {
     final data = [
       const QuizResultModel(name: "Product Planning", total: 13, pass: 13),
       const QuizResultModel(name: "Plant Administration", total: 27, pass: 12),
-      const QuizResultModel(name: "Production Control", total: 26, pass: 17),
-      const QuizResultModel(name: "Purchasing", total: 32, pass: 16),
+      const QuizResultModel(name: "Production Control", total: 26, pass: 0),
+      const QuizResultModel(name: "Purchasing", total: 32, pass: 1),
       const QuizResultModel(name: "Supplier base development", total: 13, pass: 5),
       const QuizResultModel(name: "General Assembly", total: 20, pass: 16),
-      const QuizResultModel(name: "Quality Control", total: 28, pass: 20),
+      const QuizResultModel(name: "Quality Control", total: 29, pass: 3),
       const QuizResultModel(name: "Corporate Governance", total: 13, pass: 9),
       const QuizResultModel(name: "President Office", total: 2, pass: 1),
       const QuizResultModel(name: "Demand Supply & Product Marketing", total: 15, pass: 12),
@@ -47,6 +47,8 @@ class App extends StatelessWidget {
         body: Padding(
           padding: const EdgeInsets.all(8.0),
           child: QuizChart(
+            gapBwLabelnAxes: 24,
+            showSecondLabelReplace: true,
             data: List.generate(data.length, (i) {
               return QuizChartData(
                 x: data[i].name,
